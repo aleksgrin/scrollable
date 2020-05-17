@@ -1,0 +1,42 @@
+.scrollable {
+  position: relative;
+  &__inner {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+  &__scroll-bar {
+    position: absolute;
+    border-radius: 10px;
+    background-color: #ececec;
+    z-index: 2;
+    &--y {
+      height: 90%;
+      width: 4px;
+      top: 50%;
+      right: 10px;
+      transform: translate3d(0, -50%, 0);
+    }
+    &--x {
+      width: 90%;
+      height: 4px;
+      left: 50%;
+      bottom: 10px;
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+  &__scroll-bar-inner {
+    position: absolute;
+    border-radius: inherit;
+    background-color: grey;
+    left: 0;
+    top: 0;
+    &--y {
+      width: 100%;
+    }
+    &--x {
+      height: 100%;
+    }
+  }
+}
