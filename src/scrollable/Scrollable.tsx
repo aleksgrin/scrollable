@@ -318,7 +318,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     const { isTouchStarted, isRenderScroll } = this.scrollData;
     const { crollPersentage, scroll, offset } = this.state;
 
-    const transitionValue = "transform ease 0.5s";
+    const transitionOnWheel = "transform ease 0.5s";
+    const transitionOnTouch = "transform ease-out 0.3s";
     const isRenderScrollBarsY = scrollBars && isRenderScroll.y;
     const isRenderScrollBarsX = scrollBars && isRenderScroll.x;
     return (
@@ -335,12 +336,14 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
           ref={this.wrapperOut}
         >
           <div
-            className={cx({
+            className={cx("scrollable__content", {
               [`${className}__content`]: className,
             })}
             style={{
               transform: `translate3d(${offset.x}px,${offset.y}px, 0)`,
-              transition: `${isTouchStarted ? "none" : transitionValue}`,
+              transition: `${
+                isTouchStarted ? transitionOnTouch : transitionOnWheel
+              }`,
             }}
             ref={this.wrapperInner}
           >
@@ -351,8 +354,9 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
           <ScrollControlsY
             crollPersentage={crollPersentage.y}
             scrollPosition={scroll.y}
-            isTouchStarted={isTouchStarted}
-            transitionValue={transitionValue}
+            transitionValue={
+              isTouchStarted ? transitionOnTouch : transitionOnWheel
+            }
             ref={this.scrollWrapperOutY}
           />
         )}
@@ -360,8 +364,9 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
           <ScrollControlsX
             crollPersentage={crollPersentage.x}
             scrollPosition={scroll.x}
-            isTouchStarted={isTouchStarted}
-            transitionValue={transitionValue}
+            transitionValue={
+              isTouchStarted ? transitionOnTouch : transitionOnWheel
+            }
             ref={this.scrollWrapperOutX}
           />
         )}
@@ -374,22 +379,18 @@ type Ref = HTMLDivElement;
 type ScrollProps = {
   crollPersentage: number;
   scrollPosition: number;
-  isTouchStarted: boolean;
   transitionValue: string;
 };
 
 const ScrollControlsX = forwardRef<Ref, ScrollProps>(
-  (
-    { crollPersentage, scrollPosition, isTouchStarted, transitionValue },
-    ref
-  ) => (
+  ({ crollPersentage, scrollPosition, transitionValue }, ref) => (
     <div className="scrollable__scroll-bar scrollable__scroll-bar--x" ref={ref}>
       <div
         className="scrollable__scroll-bar-inner scrollable__scroll-bar-inner--x"
         style={{
           width: `${crollPersentage}%`,
           transform: `translate3d(${scrollPosition}px, 0, 0)`,
-          transition: `${isTouchStarted ? "none" : transitionValue}`,
+          transition: `${transitionValue}`,
         }}
       />
     </div>
@@ -397,17 +398,14 @@ const ScrollControlsX = forwardRef<Ref, ScrollProps>(
 );
 
 const ScrollControlsY = forwardRef<Ref, ScrollProps>(
-  (
-    { crollPersentage, scrollPosition, isTouchStarted, transitionValue },
-    ref
-  ) => (
+  ({ crollPersentage, scrollPosition, transitionValue }, ref) => (
     <div className="scrollable__scroll-bar scrollable__scroll-bar--y" ref={ref}>
       <div
         className="scrollable__scroll-bar-inner scrollable__scroll-bar-inner--y"
         style={{
           height: `${crollPersentage}%`,
           transform: `translate3d(0, ${scrollPosition}px, 0)`,
-          transition: `${isTouchStarted ? "none" : transitionValue}`,
+          transition: `${transitionValue}`,
         }}
       />
     </div>

@@ -6,6 +6,9 @@
     overflow: hidden;
     position: relative;
   }
+  &__content {
+    width: fit-content;
+  }
   &__scroll-bar {
     position: absolute;
     border-radius: 10px;

@@ -1,5 +1,5 @@
 import React from "react";
-import Scrollable from "../scrollable/Scrollable";
+import Scrollable from "../../scrollable/Scrollable";
 import "./example_1.scss";
 
 function App() {

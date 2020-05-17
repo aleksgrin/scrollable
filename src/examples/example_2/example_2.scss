@@ -1,0 +1,22 @@
+.example_2 {
+  .my-scroll {
+    width: 600px;
+    border: 1px solid black;
+    height: 400px;
+    margin: 0 auto;
+    margin-top: 30px;
+    &__content {
+      display: flex;
+      margin: 0 auto;
+      padding-bottom: 30px;
+      padding-top: 1px;
+    }
+    &__item {
+      flex-shrink: 0;
+      width: 300px;
+      height: 200px;
+      background-color: red;
+      margin: 20px;
+    }
+  }
+}
