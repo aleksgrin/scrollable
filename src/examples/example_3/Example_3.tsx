@@ -6,7 +6,7 @@ function App() {
   return (
     <div className="example_3">
       <Scrollable className="my-scroll">
-        {new Array(25).fill("").map((_, ind) => (
+        {Array.from({ length: 25 }).map((_, ind) => (
           <div className="my-scroll__item">{ind + 1}</div>
         ))}
       </Scrollable>

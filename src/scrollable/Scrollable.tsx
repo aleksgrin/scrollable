@@ -17,6 +17,12 @@ interface IState {
   crollPersentage: IInitialState;
 }
 
+interface IDomRect {
+  wrapperOutSize: number;
+  wrapperInnerSize: number;
+  scrollWrapperOutSize: number;
+}
+
 class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   state: IState = {
     offset: { x: 0, y: 0 },
@@ -58,10 +64,6 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     this.scrollData.start = { x: touchStartX, y: touchStartY };
   };
 
-  onTouchEnd = () => {
-    this.scrollData.isTouchStarted = false;
-  };
-
   onMove = (evt: React.TouchEvent) => {
     const {
       isTouchStarted,
@@ -81,6 +83,10 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
         this.setScroll(nextOffset, "y");
       }
     }
+  };
+
+  onTouchEnd = () => {
+    this.scrollData.isTouchStarted = false;
   };
 
   getBoundaryValue = (value: number, min: number, max: number) => {
@@ -108,7 +114,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       MAX_OFFSET
     );
 
-    const boundaryLeft = this.getBoundaryValue(
+    const boundaryScrollBarValue = this.getBoundaryValue(
       nextScrollBarValue,
       MIN_SCROLL,
       MAX_SCROLL
@@ -121,7 +127,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       },
       scroll: {
         ...prevState.scroll,
-        [type]: boundaryLeft,
+        [type]: boundaryScrollBarValue,
       },
     }));
   };
@@ -141,11 +147,17 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   onMouseLeave = () => (this.scrollData.isCursorInside = false);
 
-  onWheel = (evt: WheelEvent) =>
-    this.scrollData.isCursorInside && evt.preventDefault();
+  onWheel = (evt: WheelEvent) => {
+    const { isRenderScroll, isCursorInside } = this.scrollData;
+    const isPrevent = (isRenderScroll.x || isRenderScroll.y) && isCursorInside;
+    if (isPrevent) evt.preventDefault();
+  };
 
-  onTouchMove = (evt: TouchEvent) =>
-    this.scrollData.isTouchStarted && evt.preventDefault();
+  onTouchMove = (evt: TouchEvent) => {
+    const { isRenderScroll, isTouchStarted } = this.scrollData;
+    const isPrevent = (isRenderScroll.x || isRenderScroll.y) && isTouchStarted;
+    if (isPrevent) evt.preventDefault();
+  };
 
   getCenterCoords = (elem: HTMLElement) => {
     const outerRect = this.wrapperOut.current!.getBoundingClientRect();
@@ -176,9 +188,14 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     const wrapperInnerSize = this.wrapperInner.current!.getBoundingClientRect()[
       size
     ];
-    const scrollWrapperOutSize = this.scrollWrapperOutX.current!.getBoundingClientRect()[
+    let scrollWrapperOutSize = this.scrollWrapperOutX.current!.getBoundingClientRect()[
       size
     ];
+    if (size === "height") {
+      scrollWrapperOutSize = this.scrollWrapperOutY.current!.getBoundingClientRect()[
+        size
+      ];
+    }
 
     return {
       wrapperOutSize,
@@ -187,7 +204,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     };
   };
 
-  updateScrollData = (domRect: any, type: "x" | "y") => {
+  updateScrollData = (domRect: IDomRect, type: "x" | "y") => {
     const { wrapperOutSize, wrapperInnerSize, scrollWrapperOutSize } = domRect;
 
     if (
@@ -197,11 +214,11 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     ) {
       const MAX_OFFSET = wrapperInnerSize - wrapperOutSize;
       const crollPersentage = (1 - MAX_OFFSET / wrapperInnerSize) * 100;
-      const MAX_SCROLL_LEFT =
-        wrapperOutSize - (wrapperOutSize * crollPersentage) / 100;
+      const MAX_SCROLL =
+        scrollWrapperOutSize - (scrollWrapperOutSize * crollPersentage) / 100;
 
       this.scrollData.MAX_OFFSET[type] = MAX_OFFSET;
-      this.scrollData.MAX_SCROLL[type] = MAX_SCROLL_LEFT;
+      this.scrollData.MAX_SCROLL[type] = MAX_SCROLL;
 
       this.scrollData.isRenderScroll[type] = MAX_OFFSET > 0;
       this.setState((prevState) => ({
