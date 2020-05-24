@@ -219,45 +219,64 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     };
   };
 
+  updateScrollBars = (domRect: IDomRect, type: "x" | "y") => {
+    const { wrapperInnerSize, scrollWrapperOutSize } = domRect;
+    const MAX_OFFSET = this.scrollData.MAX_OFFSET[type];
+    if (scrollWrapperOutSize !== undefined && wrapperInnerSize !== undefined) {
+      const crollPersentage = (1 - MAX_OFFSET / wrapperInnerSize) * 100;
+      const MAX_SCROLL =
+        scrollWrapperOutSize - (scrollWrapperOutSize * crollPersentage) / 100;
+
+      this.scrollData.MAX_SCROLL[type] = MAX_SCROLL;
+      this.setState((prevState) => ({
+        crollPersentage: {
+          ...prevState.crollPersentage,
+          [type]: crollPersentage,
+        },
+      }));
+    }
+  };
+
   updateScrollData = (domRect: IDomRect, type: "x" | "y") => {
-    const { wrapperOutSize, wrapperInnerSize, scrollWrapperOutSize } = domRect;
+    const { wrapperOutSize, wrapperInnerSize } = domRect;
 
     if (wrapperOutSize !== undefined && wrapperInnerSize !== undefined) {
       const MAX_OFFSET = wrapperInnerSize - wrapperOutSize;
       this.scrollData.MAX_OFFSET[type] = MAX_OFFSET;
       this.scrollData.isRenderScroll[type] = MAX_OFFSET > 0;
-      if (scrollWrapperOutSize !== undefined) {
-        const crollPersentage = (1 - MAX_OFFSET / wrapperInnerSize) * 100;
-        const MAX_SCROLL =
-          scrollWrapperOutSize - (scrollWrapperOutSize * crollPersentage) / 100;
-
-        this.scrollData.MAX_SCROLL[type] = MAX_SCROLL;
-        this.setState((prevState) => ({
-          crollPersentage: {
-            ...prevState.crollPersentage,
-            [type]: crollPersentage,
-          },
-        }));
-      }
+      this.updateScrollBars(domRect, type);
     }
   };
 
-  componentDidMount() {
+  onWindowResize = () => {
+    this.updateScrollData(this.getDOMRect("height"), "y");
+    this.updateScrollData(this.getDOMRect("width"), "x");
+  };
+
+  initEventListeners = () => {
     window.document.addEventListener("wheel", this.onWheel, {
       passive: false,
     });
-
     window.document.addEventListener("touchmove", this.onTouchMove, {
       passive: false,
     });
+    window.addEventListener("resize", this.onWindowResize);
+  };
 
+  destroyEventListeners = () => {
+    window.document.removeEventListener("wheel", this.onWheel);
+    window.document.removeEventListener("touchmove", this.onTouchMove);
+    window.removeEventListener("resize", this.onWindowResize);
+  };
+
+  componentDidMount() {
+    this.initEventListeners();
     this.updateScrollData(this.getDOMRect("height"), "y");
     this.updateScrollData(this.getDOMRect("width"), "x");
   }
 
   componentWillUnmount() {
-    window.document.removeEventListener("wheel", this.onWheel);
-    window.document.removeEventListener("touchmove", this.onTouchMove);
+    this.destroyEventListeners();
   }
 
   render() {
