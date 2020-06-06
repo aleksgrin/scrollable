@@ -26,6 +26,7 @@ interface IState {
   scroll: IInitialState;
   crollPersentage: IInitialState;
   isRenderScroll: TInitialBool;
+  transition: string;
   MAX_OFFSET: IInitialState;
   MAX_SCROLL: IInitialState;
   MIN_OFFSET: IInitialState;
@@ -41,13 +42,16 @@ interface IDomRect {
 interface IscrollData {
   isTouchStarted: boolean;
   isTouchMoveStarted: boolean;
-  isTouchEnded: boolean;
   isCursorInside: boolean;
   start: IInitialState;
   constantOffset: IInitialState;
   decreaseTime: IInitialState;
-  vmin: number;
+  V_MIN: number;
   timesArray: Array<{ t: number; x: number; y: number }>;
+  transitionOnWheel: string;
+  transitionOnTouchEnd: (time: number) => string;
+  transitionOnTouchMove: string;
+  transitionOnClick: string;
 }
 
 const DELTA_T = 10;
@@ -57,6 +61,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     scroll: { x: 0, y: 0 },
     crollPersentage: { x: 0, y: 0 },
     isRenderScroll: { x: true, y: true },
+    transition: "",
     MAX_OFFSET: { x: 0, y: 0 },
     MIN_OFFSET: { x: 0, y: 0 },
     MAX_SCROLL: { x: 0, y: 0 },
@@ -66,13 +71,18 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   scrollData: IscrollData = {
     isTouchStarted: false,
     isTouchMoveStarted: false,
-    isTouchEnded: false,
     isCursorInside: false,
     start: { x: 0, y: 0 },
     constantOffset: { x: 0, y: 0 },
-    vmin: 0.02,
+    V_MIN: 0.02,
     decreaseTime: { x: 0, y: 0 },
     timesArray: [],
+    transitionOnWheel: "transform ease 0.5s",
+    transitionOnTouchEnd: (decreaseTime) =>
+      `transform cubic-bezier(0.16, 1, 0.3, 1) ${decreaseTime}ms`,
+    transitionOnTouchMove: "",
+    transitionOnClick: "transform ease 0.5s",
+    // transitionOnTouchMove: "transform ease-out 0.3s",
   };
 
   timer: undefined | number;
@@ -90,24 +100,14 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   onTouchStart = (evt: React.TouchEvent) => {
     const { onTouchStart } = this.props;
-    // const { isRenderScroll } = this.state;
     const constantOffsetX = this.state.offset.x;
     const constantOffsetY = this.state.offset.y;
     const touchStartX = this.getTouchCoords(evt).x;
     const touchStartY = this.getTouchCoords(evt).y;
 
     this.scrollData.isTouchStarted = true;
-    this.scrollData.isTouchEnded = false;
     this.scrollData.constantOffset = { x: constantOffsetX, y: constantOffsetY };
     this.scrollData.start = { x: touchStartX, y: touchStartY };
-    // if (isRenderScroll.x) {
-    //   const nextOffset = constantOffsetX;
-    //   this.setScroll(nextOffset, "x");
-    // }
-    // if (isRenderScroll.y) {
-    //   const nextOffset = constantOffsetY;
-    //   this.setScroll(nextOffset, "y");
-    // }
     if (onTouchStart) onTouchStart();
 
     const startTime = Date.now();
@@ -123,7 +123,12 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   };
 
   onMove = (evt: React.TouchEvent) => {
-    const { isTouchStarted, constantOffset, start } = this.scrollData;
+    const {
+      isTouchStarted,
+      constantOffset,
+      start,
+      transitionOnTouchMove,
+    } = this.scrollData;
     const { isRenderScroll } = this.state;
     const { onMove } = this.props;
     if (isTouchStarted) {
@@ -138,6 +143,9 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
         const nextOffset = constantOffset.y + end - start.y;
         this.setScroll(nextOffset, "y");
       }
+      if (isRenderScroll.x || isRenderScroll.y) {
+        this.setState({ transition: transitionOnTouchMove });
+      }
       if ((isRenderScroll.x || isRenderScroll.y) && onMove)
         onMove(this.state.offset);
     }
@@ -145,17 +153,19 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   onTouchEnd = () => {
     const { onTouchEnd } = this.props;
-    const { isTouchMoveStarted } = this.scrollData;
+    const { isTouchMoveStarted, transitionOnTouchEnd } = this.scrollData;
     if (onTouchEnd) onTouchEnd();
     window.clearInterval(this.timer);
-    if (isTouchMoveStarted) this.setInertion();
+    if (isTouchMoveStarted) {
+      const decreaseTime = this.setInertion();
+      this.setState({ transition: transitionOnTouchEnd(decreaseTime) });
+    }
     this.scrollData.isTouchStarted = false;
     this.scrollData.isTouchMoveStarted = false;
-    this.scrollData.isTouchEnded = true;
   };
 
   calculateVelocity = (index: number) => {
-    const { timesArray, vmin } = this.scrollData;
+    const { timesArray, V_MIN } = this.scrollData;
     const len = timesArray.length;
     const last = timesArray[len - 1];
     const firstInd = len - 1 - index > 0 ? len - 1 - index : 0;
@@ -169,8 +179,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       y: Math.abs((last.y - first.y) / (last.t - first.t)),
     };
     const vBoundedAbs = {
-      x: this.getBoundaryValue(vAbs.x, vmin, Infinity),
-      y: this.getBoundaryValue(vAbs.y, vmin, Infinity),
+      x: this.getBoundaryValue(vAbs.x, V_MIN, Infinity),
+      y: this.getBoundaryValue(vAbs.y, V_MIN, Infinity),
     };
 
     const vBounded = {
@@ -181,12 +191,12 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   };
 
   setInertion = () => {
-    const { vmin } = this.scrollData;
+    const { V_MIN } = this.scrollData;
     const { isRenderScroll } = this.state;
     const v0 = this.calculateVelocity(10);
-    const A = 0.0002;
-    const decreaseTimeY = (-1 / A) * Math.log(vmin / Math.abs(v0.y));
-    const decreaseTimeX = (-1 / A) * Math.log(vmin / Math.abs(v0.x));
+    const A = 0.002; // Коэффициент, отражающий быстроту уменьшения скорости
+    const decreaseTimeY = (-1 / A) * Math.log(V_MIN / Math.abs(v0.y));
+    const decreaseTimeX = (-1 / A) * Math.log(V_MIN / Math.abs(v0.x));
     const decreaseTime = {
       x: decreaseTimeX,
       y: decreaseTimeY,
@@ -208,6 +218,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     }
 
     this.scrollData.timesArray = [];
+    return Math.max(decreaseTimeX, decreaseTimeY);
   };
 
   getBoundaryValue = (value: number, min: number, max: number) => {
@@ -264,6 +275,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       const nextOffsetX = offset.x - evt.deltaX;
       this.setScroll(nextOffsetX, "x");
     }
+    if (isRenderScroll.x || isRenderScroll.y)
+      this.setState({ transition: this.scrollData.transitionOnWheel });
     if ((isRenderScroll.x || isRenderScroll.y) && onWheel) onWheel(offset);
   };
 
@@ -300,6 +313,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     const { centerX, centerY } = this.getCenterCoords(targetElem);
     const { isRenderScroll } = this.state;
 
+    if (isRenderScroll.x || isRenderScroll.y)
+      this.setState({ transition: this.scrollData.transitionOnClick });
     if (isRenderScroll.y) {
       this.setScroll(-(offsetTop - centerY), "y");
     }
@@ -409,19 +424,16 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   render() {
     const { className, children, scrollBars = true } = this.props;
-    const { isTouchStarted, isTouchEnded, decreaseTime } = this.scrollData;
-    const { crollPersentage, scroll, offset, isRenderScroll } = this.state;
+    const {
+      crollPersentage,
+      scroll,
+      offset,
+      isRenderScroll,
+      transition,
+    } = this.state;
 
-    const transitionOnWheel = "transform ease 0.5s";
-    const transitionOnEnd = `transform cubic-bezier(0.16, 1, 0.3, 1) ${decreaseTime.y}ms`;
-    const transitionOnTouch = "transform ease-out 0.3s";
     const isRenderScrollBarsY = scrollBars && isRenderScroll.y;
     const isRenderScrollBarsX = scrollBars && isRenderScroll.x;
-    let transitionValue = "";
-
-    if (isTouchStarted) transitionValue = transitionOnTouch;
-    else if (isTouchEnded) transitionValue = transitionOnEnd;
-    else transitionValue = transitionOnWheel;
     return (
       <div className={cx("scrollable", { [`${className}`]: className })}>
         <div
@@ -441,7 +453,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
             })}
             style={{
               transform: `translate3d(${offset.x}px,${offset.y}px, 0)`,
-              transition: transitionValue,
+              transition: transition,
             }}
             ref={this.wrapperInner}
           >
@@ -452,7 +464,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
           <ScrollControlsY
             crollPersentage={crollPersentage.y}
             scrollPosition={scroll.y}
-            transitionValue={transitionValue}
+            transitionValue={transition}
             ref={this.scrollWrapperOutY}
           />
         )}
@@ -460,7 +472,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
           <ScrollControlsX
             crollPersentage={crollPersentage.x}
             scrollPosition={scroll.x}
-            transitionValue={transitionValue}
+            transitionValue={transition}
             ref={this.scrollWrapperOutX}
           />
         )}
