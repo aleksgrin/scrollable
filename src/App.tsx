@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import Example_1 from "./examples/example_1/Example_1";
-import Example_2 from "./examples/example_2/Example_2";
-import Example_3 from "./examples/example_3/Example_3";
+import Example1 from "./examples/example_1/Example_1";
+import Example2 from "./examples/example_2/Example_2";
+import Example3 from "./examples/example_3/Example_3";
 
 const startPos = 20;
 let timer: number | undefined;
@@ -21,9 +21,9 @@ function App() {
 
   return (
     <div className="App">
-      <Example_1 />
-      <Example_2 />
-      <Example_3 />
+      <Example1 />
+      <Example2 />
+      <Example3 />
       <div className="app_test" style={{ top: `${position}px` }}>
         velocity: {velocity}
       </div>

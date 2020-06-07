@@ -7,7 +7,9 @@ function App() {
     <div className="example_3">
       <Scrollable className="my-scroll">
         {Array.from({ length: 25 }).map((_, ind) => (
-          <div className="my-scroll__item">{ind + 1}</div>
+          <div className="my-scroll__item" key={ind}>
+            {ind + 1}
+          </div>
         ))}
       </Scrollable>
     </div>
