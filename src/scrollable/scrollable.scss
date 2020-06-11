@@ -1,6 +1,5 @@
 .scrollable {
   position: relative;
-  pointer-events: none;
   &__inner {
     height: 100%;
     width: 100%;
@@ -9,10 +8,6 @@
   }
   &__content {
     width: fit-content;
-    pointer-events: none;
-    * {
-      pointer-events: all;
-    }
   }
   &__scroll-bar {
     position: absolute;

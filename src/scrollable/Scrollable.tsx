@@ -42,10 +42,13 @@ interface IDomRect {
 
 interface IscrollData {
   isTouchStarted: boolean;
+  isClickStarted: boolean;
   isTouchMoveStarted: boolean;
   isCursorInside: boolean;
   start: IInitialState;
+  barStart: IInitialState;
   constantOffset: IInitialState;
+  constantBarOffset: IInitialState;
   decreaseTime: IInitialState;
   V_MIN: number;
   timesArray: Array<{ t: number; x: number; y: number }>;
@@ -71,10 +74,13 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   scrollData: IscrollData = {
     isTouchStarted: false,
+    isClickStarted: false,
     isTouchMoveStarted: false,
     isCursorInside: false,
     start: { x: 0, y: 0 },
+    barStart: { x: 0, y: 0 },
     constantOffset: { x: 0, y: 0 },
+    constantBarOffset: { x: 0, y: 0 },
     V_MIN: 0.02,
     decreaseTime: { x: 0, y: 0 },
     timesArray: [],
@@ -92,10 +98,57 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   scrollWrapperOutY = createRef<HTMLDivElement>();
   scrollWrapperOutX = createRef<HTMLDivElement>();
 
-  getTouchCoords = (evt: React.TouchEvent) => {
+  getTouchCoords = (evt: React.TouchEvent | TouchEvent) => {
     const x = evt.changedTouches[0].clientX;
     const y = evt.changedTouches[0].clientY;
     return { x, y };
+  };
+
+  onMouseDown = (evt: React.MouseEvent) => {
+    const constantBarOffsetX = this.state.scroll.x;
+    const constantBarOffsetY = this.state.scroll.y;
+    const clickStartX = evt.clientX;
+    const clickStartY = evt.clientY;
+
+    this.scrollData.isClickStarted = true;
+    this.scrollData.constantBarOffset = {
+      x: constantBarOffsetX,
+      y: constantBarOffsetY,
+    };
+    this.scrollData.barStart = { x: clickStartX, y: clickStartY };
+    window.document.addEventListener("mousemove", this.onMouseMove);
+    window.document.addEventListener("mouseup", this.onMouseUp);
+  };
+
+  onMouseMove = (evt: MouseEvent) => {
+    const {
+      isClickStarted,
+      constantBarOffset,
+      barStart,
+      transitionOnTouchMove,
+    } = this.scrollData;
+    const { isRenderScroll } = this.state;
+    if (isClickStarted) {
+      if (isRenderScroll.x) {
+        const end = evt.clientX;
+        const nextBarOffset = constantBarOffset.x + end - barStart.x;
+        this.setScrollBar(nextBarOffset, "x");
+      }
+      if (isRenderScroll.y) {
+        const end = evt.clientY;
+        const nextBarOffset = constantBarOffset.y + end - barStart.y;
+        this.setScrollBar(nextBarOffset, "y");
+      }
+      if (isRenderScroll.x || isRenderScroll.y) {
+        this.setState({ transition: transitionOnTouchMove });
+      }
+    }
+  };
+
+  onMouseUp = () => {
+    this.scrollData.isClickStarted = false;
+    window.document.removeEventListener("mousemove", this.onMouseMove);
+    window.document.removeEventListener("mouseup", this.onMouseUp);
   };
 
   onTouchStart = (evt: React.TouchEvent) => {
@@ -120,9 +173,12 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       };
       this.scrollData.timesArray.push(timerValue);
     }, DELTA_T);
+
+    window.document.addEventListener("touchmove", this.onMove);
+    window.document.addEventListener("touchend", this.onTouchEnd);
   };
 
-  onMove = (evt: React.TouchEvent) => {
+  onMove = (evt: TouchEvent) => {
     const {
       isTouchStarted,
       constantOffset,
@@ -158,6 +214,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     this.setScrollOnTouchEnd();
     this.scrollData.isTouchStarted = false;
     this.scrollData.isTouchMoveStarted = false;
+    window.document.removeEventListener("touchmove", this.onMove);
+    window.document.removeEventListener("touchend", this.onTouchEnd);
   };
 
   setScrollOnTouchEnd = () => {
@@ -358,6 +416,39 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     }));
   };
 
+  setScrollBar = (barOffset: number, type: "x" | "y") => {
+    const {
+      MAX_OFFSET: { [type]: MAX_OFFSET },
+      MIN_OFFSET: { [type]: MIN_OFFSET },
+      MAX_SCROLL: { [type]: MAX_SCROLL },
+      MIN_SCROLL: { [type]: MIN_SCROLL },
+    } = this.state;
+
+    const nextOffset = Math.round((-barOffset * MAX_OFFSET) / MAX_SCROLL);
+    const boundaryOffset = -this.getBoundaryValue(
+      -nextOffset,
+      MIN_OFFSET,
+      MAX_OFFSET
+    );
+
+    const boundaryScrollBarValue = this.getBoundaryValue(
+      barOffset,
+      MIN_SCROLL,
+      MAX_SCROLL
+    );
+
+    this.setState((prevState) => ({
+      offset: {
+        ...prevState.offset,
+        [type]: boundaryOffset,
+      },
+      scroll: {
+        ...prevState.scroll,
+        [type]: boundaryScrollBarValue,
+      },
+    }));
+  };
+
   onScroll = (evt: React.WheelEvent) => {
     const { onWheel } = this.props;
     const { offset, isRenderScroll } = this.state;
@@ -403,8 +494,15 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   onClick = (evt: React.SyntheticEvent) => {
     const { clickable = true } = this.props;
+    const noClickClassnames = ["scrollable__inner", "scrollable__content"];
     if (!clickable) return;
     const targetElem = evt.target as HTMLElement;
+    if (
+      noClickClassnames.some((className) =>
+        targetElem.classList.contains(className)
+      )
+    )
+      return;
     const { offsetLeft, offsetTop } = targetElem;
     const { centerX, centerY } = this.getCenterCoords(targetElem);
     const { isRenderScroll } = this.state;
@@ -535,8 +633,6 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
         <div
           className="scrollable__inner"
           onTouchStart={this.onTouchStart}
-          onTouchEnd={this.onTouchEnd}
-          onTouchMove={this.onMove}
           onWheel={this.onScroll}
           onMouseOver={this.onMouseOver}
           onMouseLeave={this.onMouseLeave}
@@ -561,6 +657,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
             crollPersentage={crollPersentage.y}
             scrollPosition={scroll.y}
             transitionValue={transition}
+            onMouseDown={this.onMouseDown}
             ref={this.scrollWrapperOutY}
           />
         )}
@@ -568,6 +665,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
           <ScrollControlsX
             crollPersentage={crollPersentage.x}
             scrollPosition={scroll.x}
+            onMouseDown={this.onMouseDown}
             transitionValue={transition}
             ref={this.scrollWrapperOutX}
           />
@@ -582,10 +680,11 @@ type ScrollProps = {
   crollPersentage: number;
   scrollPosition: number;
   transitionValue: string;
+  onMouseDown: (evt: React.MouseEvent) => void;
 };
 
 const ScrollControlsX = forwardRef<Ref, ScrollProps>(
-  ({ crollPersentage, scrollPosition, transitionValue }, ref) => (
+  ({ crollPersentage, scrollPosition, transitionValue, onMouseDown }, ref) => (
     <div className="scrollable__scroll-bar scrollable__scroll-bar--x" ref={ref}>
       <div
         className="scrollable__scroll-bar-inner scrollable__scroll-bar-inner--x"
@@ -594,13 +693,14 @@ const ScrollControlsX = forwardRef<Ref, ScrollProps>(
           transform: `translate3d(${scrollPosition}px, 0, 0)`,
           transition: `${transitionValue}`,
         }}
+        onMouseDown={onMouseDown}
       />
     </div>
   )
 );
 
 const ScrollControlsY = forwardRef<Ref, ScrollProps>(
-  ({ crollPersentage, scrollPosition, transitionValue }, ref) => (
+  ({ crollPersentage, scrollPosition, transitionValue, onMouseDown }, ref) => (
     <div className="scrollable__scroll-bar scrollable__scroll-bar--y" ref={ref}>
       <div
         className="scrollable__scroll-bar-inner scrollable__scroll-bar-inner--y"
@@ -609,6 +709,7 @@ const ScrollControlsY = forwardRef<Ref, ScrollProps>(
           transform: `translate3d(0, ${scrollPosition}px, 0)`,
           transition: `${transitionValue}`,
         }}
+        onMouseDown={onMouseDown}
       />
     </div>
   )
