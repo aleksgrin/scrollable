@@ -98,12 +98,199 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   scrollWrapperOutY = createRef<HTMLDivElement>();
   scrollWrapperOutX = createRef<HTMLDivElement>();
 
+  // Вспомогательные функции
+  getDOMRect = (size: "width" | "height") => {
+    const wrapperOutSize = this.wrapperOut.current?.getBoundingClientRect()[
+      size
+    ];
+    const wrapperInnerSize = this.wrapperInner.current?.getBoundingClientRect()[
+      size
+    ];
+    let scrollWrapperOutSize = this.scrollWrapperOutX.current?.getBoundingClientRect()[
+      size
+    ];
+    if (size === "height") {
+      scrollWrapperOutSize = this.scrollWrapperOutY.current?.getBoundingClientRect()[
+        size
+      ];
+    }
+
+    return {
+      wrapperOutSize,
+      wrapperInnerSize,
+      scrollWrapperOutSize,
+    };
+  };
+
   getTouchCoords = (evt: React.TouchEvent | TouchEvent) => {
     const x = evt.changedTouches[0].clientX;
     const y = evt.changedTouches[0].clientY;
     return { x, y };
   };
 
+  isOffsetOut = (type: "x" | "y") => {
+    const {
+      MAX_OFFSET: { [type]: MAX_OFFSET },
+      MIN_OFFSET: { [type]: MIN_OFFSET },
+      offset: { [type]: offset },
+    } = this.state;
+
+    return this.isValueOutBound(-offset, MIN_OFFSET, MAX_OFFSET);
+  };
+
+  getBoundaryValue = (value: number, min: number, max: number) => {
+    if (value >= max) {
+      return max;
+    }
+    if (value <= min) {
+      return min;
+    }
+    return value;
+  };
+
+  isValueOutBound = (value: number, min: number, max: number) => {
+    if (value > max || value < min) {
+      return true;
+    }
+    return false;
+  };
+
+  getSize = (coords: "x" | "y") => {
+    if (coords === "x") return "width";
+    return "height";
+  };
+
+  getCenterCoords = (elem: HTMLElement) => {
+    const outerRect = this.wrapperOut.current!.getBoundingClientRect();
+    const elemRect = elem.getBoundingClientRect();
+
+    const centerX = (outerRect.width - elemRect.width) / 2;
+    const centerY = (outerRect.height - elemRect.height) / 2;
+    return { centerX, centerY };
+  };
+
+  // Функции задачи скролла
+  setScrollLog = (offset: number, type: "x" | "y") => {
+    const {
+      MAX_OFFSET: { [type]: MAX_OFFSET },
+      MIN_OFFSET: { [type]: MIN_OFFSET },
+      MAX_SCROLL: { [type]: MAX_SCROLL },
+      MIN_SCROLL: { [type]: MIN_SCROLL },
+    } = this.state;
+    const { scrollWrapperOutSize = 0 } = this.getDOMRect(this.getSize(type));
+    const nextScrollBarValue = Math.round((-offset * MAX_SCROLL) / MAX_OFFSET);
+    const isBoundaryOffset = this.isValueOutBound(
+      -offset,
+      MIN_OFFSET,
+      MAX_OFFSET
+    );
+
+    const MAX_LOG_OFFSET = scrollWrapperOutSize * 0.25;
+    const CONSTANT_ATAN_LIM = MAX_LOG_OFFSET / (Math.PI / 2);
+    let boundaryOffset: number;
+    if (isBoundaryOffset) {
+      const deltaOffset =
+        offset > 0
+          ? Math.abs(offset) - MIN_OFFSET
+          : Math.abs(offset) - MAX_OFFSET;
+      const logOffsetAbs =
+        CONSTANT_ATAN_LIM *
+        Math.atan((1 / CONSTANT_ATAN_LIM) * Math.abs(deltaOffset));
+      boundaryOffset =
+        offset > 0 ? MIN_OFFSET + logOffsetAbs : -MAX_OFFSET - logOffsetAbs;
+    } else {
+      boundaryOffset = offset;
+    }
+
+    const boundaryScrollBarValue = this.getBoundaryValue(
+      nextScrollBarValue,
+      MIN_SCROLL,
+      MAX_SCROLL
+    );
+
+    this.setState((prevState) => ({
+      offset: {
+        ...prevState.offset,
+        [type]: boundaryOffset,
+      },
+      scroll: {
+        ...prevState.scroll,
+        [type]: boundaryScrollBarValue,
+      },
+    }));
+  };
+
+  setScroll = (
+    offset: number,
+    type: "x" | "y",
+    target: "BAR" | "SCROLL" = "SCROLL"
+  ) => {
+    const {
+      MAX_OFFSET: { [type]: MAX_OFFSET },
+      MIN_OFFSET: { [type]: MIN_OFFSET },
+      MAX_SCROLL: { [type]: MAX_SCROLL },
+      MIN_SCROLL: { [type]: MIN_SCROLL },
+    } = this.state;
+
+    const nextScrollBarValue = Math.round((-offset * MAX_SCROLL) / MAX_OFFSET);
+    const boundaryOffset = -this.getBoundaryValue(
+      -offset,
+      MIN_OFFSET,
+      MAX_OFFSET
+    );
+
+    const boundaryScrollBarValue = this.getBoundaryValue(
+      nextScrollBarValue,
+      MIN_SCROLL,
+      MAX_SCROLL
+    );
+
+    this.setState((prevState) => ({
+      offset: {
+        ...prevState.offset,
+        [type]: boundaryOffset,
+      },
+      scroll: {
+        ...prevState.scroll,
+        [type]: boundaryScrollBarValue,
+      },
+    }));
+  };
+
+  setScrollBar = (barOffset: number, type: "x" | "y") => {
+    const {
+      MAX_OFFSET: { [type]: MAX_OFFSET },
+      MIN_OFFSET: { [type]: MIN_OFFSET },
+      MAX_SCROLL: { [type]: MAX_SCROLL },
+      MIN_SCROLL: { [type]: MIN_SCROLL },
+    } = this.state;
+
+    const nextOffset = Math.round((-barOffset * MAX_OFFSET) / MAX_SCROLL);
+    const boundaryOffset = -this.getBoundaryValue(
+      -nextOffset,
+      MIN_OFFSET,
+      MAX_OFFSET
+    );
+
+    const boundaryScrollBarValue = this.getBoundaryValue(
+      barOffset,
+      MIN_SCROLL,
+      MAX_SCROLL
+    );
+
+    this.setState((prevState) => ({
+      offset: {
+        ...prevState.offset,
+        [type]: boundaryOffset,
+      },
+      scroll: {
+        ...prevState.scroll,
+        [type]: boundaryScrollBarValue,
+      },
+    }));
+  };
+
+  // Обработчики событий
   onMouseDown = (evt: React.MouseEvent) => {
     const constantBarOffsetX = this.state.scroll.x;
     const constantBarOffsetY = this.state.scroll.y;
@@ -121,12 +308,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   };
 
   onMouseMove = (evt: MouseEvent) => {
-    const {
-      isClickStarted,
-      constantBarOffset,
-      barStart,
-      transitionOnTouchMove,
-    } = this.scrollData;
+    const { isClickStarted, constantBarOffset, barStart } = this.scrollData;
     const { isRenderScroll } = this.state;
     if (isClickStarted) {
       if (isRenderScroll.x) {
@@ -140,7 +322,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
         this.setScrollBar(nextBarOffset, "y");
       }
       if (isRenderScroll.x || isRenderScroll.y) {
-        this.setState({ transition: transitionOnTouchMove });
+        this.setState({ transition: "" });
       }
     }
   };
@@ -249,16 +431,6 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     }
   };
 
-  isOffsetOut = (type: "x" | "y") => {
-    const {
-      MAX_OFFSET: { [type]: MAX_OFFSET },
-      MIN_OFFSET: { [type]: MIN_OFFSET },
-      offset: { [type]: offset },
-    } = this.state;
-
-    return this.isValueOutBound(-offset, MIN_OFFSET, MAX_OFFSET);
-  };
-
   calculateVelocity = (index: number) => {
     const { timesArray, V_MIN } = this.scrollData;
     const len = timesArray.length;
@@ -316,140 +488,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     return Math.max(decreaseTimeX, decreaseTimeY);
   };
 
-  getBoundaryValue = (value: number, min: number, max: number) => {
-    if (value >= max) {
-      return max;
-    }
-    if (value <= min) {
-      return min;
-    }
-    return value;
-  };
-
-  isValueOutBound = (value: number, min: number, max: number) => {
-    if (value > max || value < min) {
-      return true;
-    }
-    return false;
-  };
-
-  setScrollLog = (offset: number, type: "x" | "y") => {
-    const {
-      MAX_OFFSET: { [type]: MAX_OFFSET },
-      MIN_OFFSET: { [type]: MIN_OFFSET },
-      MAX_SCROLL: { [type]: MAX_SCROLL },
-      MIN_SCROLL: { [type]: MIN_SCROLL },
-    } = this.state;
-    const { scrollWrapperOutSize = 0 } = this.getDOMRect(this.getSize(type));
-    const nextScrollBarValue = Math.round((-offset * MAX_SCROLL) / MAX_OFFSET);
-    const isBoundaryOffset = this.isValueOutBound(
-      -offset,
-      MIN_OFFSET,
-      MAX_OFFSET
-    );
-
-    const MAX_LOG_OFFSET = scrollWrapperOutSize * 0.25;
-    const CONSTANT_ATAN_LIM = MAX_LOG_OFFSET / (Math.PI / 2);
-    let boundaryOffset: number;
-    if (isBoundaryOffset) {
-      const deltaOffset =
-        offset > 0
-          ? Math.abs(offset) - MIN_OFFSET
-          : Math.abs(offset) - MAX_OFFSET;
-      const logOffsetAbs =
-        CONSTANT_ATAN_LIM *
-        Math.atan((1 / CONSTANT_ATAN_LIM) * Math.abs(deltaOffset));
-      boundaryOffset =
-        offset > 0 ? MIN_OFFSET + logOffsetAbs : -MAX_OFFSET - logOffsetAbs;
-    } else {
-      boundaryOffset = offset;
-    }
-
-    const boundaryScrollBarValue = this.getBoundaryValue(
-      nextScrollBarValue,
-      MIN_SCROLL,
-      MAX_SCROLL
-    );
-
-    this.setState((prevState) => ({
-      offset: {
-        ...prevState.offset,
-        [type]: boundaryOffset,
-      },
-      scroll: {
-        ...prevState.scroll,
-        [type]: boundaryScrollBarValue,
-      },
-    }));
-  };
-
-  setScroll = (offset: number, type: "x" | "y") => {
-    const {
-      MAX_OFFSET: { [type]: MAX_OFFSET },
-      MIN_OFFSET: { [type]: MIN_OFFSET },
-      MAX_SCROLL: { [type]: MAX_SCROLL },
-      MIN_SCROLL: { [type]: MIN_SCROLL },
-    } = this.state;
-
-    const nextScrollBarValue = Math.round((-offset * MAX_SCROLL) / MAX_OFFSET);
-    const boundaryOffset = -this.getBoundaryValue(
-      -offset,
-      MIN_OFFSET,
-      MAX_OFFSET
-    );
-
-    const boundaryScrollBarValue = this.getBoundaryValue(
-      nextScrollBarValue,
-      MIN_SCROLL,
-      MAX_SCROLL
-    );
-
-    this.setState((prevState) => ({
-      offset: {
-        ...prevState.offset,
-        [type]: boundaryOffset,
-      },
-      scroll: {
-        ...prevState.scroll,
-        [type]: boundaryScrollBarValue,
-      },
-    }));
-  };
-
-  setScrollBar = (barOffset: number, type: "x" | "y") => {
-    const {
-      MAX_OFFSET: { [type]: MAX_OFFSET },
-      MIN_OFFSET: { [type]: MIN_OFFSET },
-      MAX_SCROLL: { [type]: MAX_SCROLL },
-      MIN_SCROLL: { [type]: MIN_SCROLL },
-    } = this.state;
-
-    const nextOffset = Math.round((-barOffset * MAX_OFFSET) / MAX_SCROLL);
-    const boundaryOffset = -this.getBoundaryValue(
-      -nextOffset,
-      MIN_OFFSET,
-      MAX_OFFSET
-    );
-
-    const boundaryScrollBarValue = this.getBoundaryValue(
-      barOffset,
-      MIN_SCROLL,
-      MAX_SCROLL
-    );
-
-    this.setState((prevState) => ({
-      offset: {
-        ...prevState.offset,
-        [type]: boundaryOffset,
-      },
-      scroll: {
-        ...prevState.scroll,
-        [type]: boundaryScrollBarValue,
-      },
-    }));
-  };
-
-  onScroll = (evt: React.WheelEvent) => {
+  onWheel = (evt: React.WheelEvent) => {
     const { onWheel } = this.props;
     const { offset, isRenderScroll } = this.state;
     if (isRenderScroll.y) {
@@ -469,27 +508,18 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   onMouseLeave = () => (this.scrollData.isCursorInside = false);
 
-  onWheel = (evt: WheelEvent) => {
+  onDocumentWheel = (evt: WheelEvent) => {
     const { isCursorInside } = this.scrollData;
     const { isRenderScroll } = this.state;
     const isPrevent = (isRenderScroll.x || isRenderScroll.y) && isCursorInside;
     if (isPrevent) evt.preventDefault();
   };
 
-  onTouchMove = (evt: TouchEvent) => {
+  onDocumentTouchMove = (evt: TouchEvent) => {
     const { isTouchStarted } = this.scrollData;
     const { isRenderScroll } = this.state;
     const isPrevent = (isRenderScroll.x || isRenderScroll.y) && isTouchStarted;
     if (isPrevent) evt.preventDefault();
-  };
-
-  getCenterCoords = (elem: HTMLElement) => {
-    const outerRect = this.wrapperOut.current!.getBoundingClientRect();
-    const elemRect = elem.getBoundingClientRect();
-
-    const centerX = (outerRect.width - elemRect.width) / 2;
-    const centerY = (outerRect.height - elemRect.height) / 2;
-    return { centerX, centerY };
   };
 
   onClick = (evt: React.SyntheticEvent) => {
@@ -517,32 +547,9 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     }
   };
 
-  getDOMRect = (size: "width" | "height") => {
-    const wrapperOutSize = this.wrapperOut.current?.getBoundingClientRect()[
-      size
-    ];
-    const wrapperInnerSize = this.wrapperInner.current?.getBoundingClientRect()[
-      size
-    ];
-    let scrollWrapperOutSize = this.scrollWrapperOutX.current?.getBoundingClientRect()[
-      size
-    ];
-    if (size === "height") {
-      scrollWrapperOutSize = this.scrollWrapperOutY.current?.getBoundingClientRect()[
-        size
-      ];
-    }
-
-    return {
-      wrapperOutSize,
-      wrapperInnerSize,
-      scrollWrapperOutSize,
-    };
-  };
-
-  getSize = (coords: "x" | "y") => {
-    if (coords === "x") return "width";
-    return "height";
+  onWindowResize = () => {
+    this.updateScrollData("y");
+    this.updateScrollData("x");
   };
 
   updateScrollBars = (type: "x" | "y") => {
@@ -585,24 +592,19 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     }
   };
 
-  onWindowResize = () => {
-    this.updateScrollData("y");
-    this.updateScrollData("x");
-  };
-
   initEventListeners = () => {
-    window.document.addEventListener("wheel", this.onWheel, {
+    window.document.addEventListener("wheel", this.onDocumentWheel, {
       passive: false,
     });
-    window.document.addEventListener("touchmove", this.onTouchMove, {
+    window.document.addEventListener("touchmove", this.onDocumentTouchMove, {
       passive: false,
     });
     window.addEventListener("resize", this.onWindowResize);
   };
 
   destroyEventListeners = () => {
-    window.document.removeEventListener("wheel", this.onWheel);
-    window.document.removeEventListener("touchmove", this.onTouchMove);
+    window.document.removeEventListener("wheel", this.onDocumentWheel);
+    window.document.removeEventListener("touchmove", this.onDocumentTouchMove);
     window.removeEventListener("resize", this.onWindowResize);
   };
 
@@ -633,7 +635,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
         <div
           className="scrollable__inner"
           onTouchStart={this.onTouchStart}
-          onWheel={this.onScroll}
+          onWheel={this.onWheel}
           onMouseOver={this.onMouseOver}
           onMouseLeave={this.onMouseLeave}
           onClick={this.onClick}
