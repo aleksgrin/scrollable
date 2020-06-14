@@ -34,12 +34,6 @@ interface IState {
   MIN_SCROLL: IInitialState;
 }
 
-interface IDomRect {
-  wrapperOutSize: number | undefined;
-  wrapperInnerSize: number | undefined;
-  scrollWrapperOutSize: number | undefined;
-}
-
 interface IscrollData {
   isTouchStarted: boolean;
   isClickStarted: boolean;
@@ -49,7 +43,6 @@ interface IscrollData {
   barStart: IInitialState;
   constantOffset: IInitialState;
   constantBarOffset: IInitialState;
-  decreaseTime: IInitialState;
   V_MIN: number;
   timesArray: Array<{ t: number; x: number; y: number }>;
   transitionOnWheel: string;
@@ -58,6 +51,11 @@ interface IscrollData {
   transitionOnClick: string;
 }
 
+type TAnimate = {
+  timing: (timeFraction: number) => number;
+  draw: (progress: number) => void;
+  duration: number;
+};
 const DELTA_T = 10;
 class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   state: IState = {
@@ -82,7 +80,6 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     constantOffset: { x: 0, y: 0 },
     constantBarOffset: { x: 0, y: 0 },
     V_MIN: 0.02,
-    decreaseTime: { x: 0, y: 0 },
     timesArray: [],
     transitionOnWheel: "transform ease 0.5s",
     transitionOnTouchEnd: (decreaseTime) =>
@@ -92,6 +89,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   };
 
   timer: undefined | number;
+  animationFrameTimerId: number = 0;
 
   wrapperOut = createRef<HTMLDivElement>();
   wrapperInner = createRef<HTMLDivElement>();
@@ -220,11 +218,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     }));
   };
 
-  setScroll = (
-    offset: number,
-    type: "x" | "y",
-    target: "BAR" | "SCROLL" = "SCROLL"
-  ) => {
+  setScroll = (offset: number, type: "x" | "y") => {
     const {
       MAX_OFFSET: { [type]: MAX_OFFSET },
       MIN_OFFSET: { [type]: MIN_OFFSET },
@@ -232,6 +226,9 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       MIN_SCROLL: { [type]: MIN_SCROLL },
     } = this.state;
 
+    if (isNaN(offset)) {
+      debugger;
+    }
     const nextScrollBarValue = Math.round((-offset * MAX_SCROLL) / MAX_OFFSET);
     const boundaryOffset = -this.getBoundaryValue(
       -offset,
@@ -290,6 +287,22 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     }));
   };
 
+  animate = ({ timing, draw, duration }: TAnimate) => {
+    let start = performance.now();
+
+    const animate = (time: number) => {
+      let timeFraction = (time - start) / duration;
+
+      if (timeFraction > 1) timeFraction = 1;
+      let progress = timing(timeFraction);
+      draw(progress);
+      if (timeFraction < 1) {
+        this.animationFrameTimerId = requestAnimationFrame(animate);
+      }
+    };
+    this.animationFrameTimerId = requestAnimationFrame(animate);
+  };
+
   // Обработчики событий
   onMouseDown = (evt: React.MouseEvent) => {
     const constantBarOffsetX = this.state.scroll.x;
@@ -343,8 +356,9 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     this.scrollData.isTouchStarted = true;
     this.scrollData.constantOffset = { x: constantOffsetX, y: constantOffsetY };
     this.scrollData.start = { x: touchStartX, y: touchStartY };
-    if (onTouchStart) onTouchStart();
+    if (typeof onTouchStart === "function") onTouchStart();
 
+    window.cancelAnimationFrame(this.animationFrameTimerId);
     const startTime = Date.now();
     this.timer = window.setInterval(() => {
       const currTime = Date.now();
@@ -384,14 +398,17 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       if (isRenderScroll.x || isRenderScroll.y) {
         this.setState({ transition: transitionOnTouchMove });
       }
-      if ((isRenderScroll.x || isRenderScroll.y) && onMove)
+      if (
+        (isRenderScroll.x || isRenderScroll.y) &&
+        typeof onMove === "function"
+      )
         onMove(this.state.offset);
     }
   };
 
   onTouchEnd = () => {
     const { onTouchEnd } = this.props;
-    if (onTouchEnd) onTouchEnd();
+    if (typeof onTouchEnd === "function") onTouchEnd();
     window.clearInterval(this.timer);
     this.setScrollOnTouchEnd();
     this.scrollData.isTouchStarted = false;
@@ -401,11 +418,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   };
 
   setScrollOnTouchEnd = () => {
-    const {
-      isTouchMoveStarted,
-      transitionOnTouchEnd,
-      transitionOnWheel,
-    } = this.scrollData;
+    const { isTouchMoveStarted, transitionOnWheel } = this.scrollData;
     const { isRenderScroll } = this.state;
 
     if (!isTouchMoveStarted) return;
@@ -417,17 +430,17 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
     const isSetX = isOffsetOut.x && isRenderScroll.x;
     const isSetY = isOffsetOut.y && isRenderScroll.y;
+    if (isSetY || isSetX) {
+      this.setState({ transition: transitionOnWheel });
+    }
     if (isSetY) {
       this.setScroll(this.state.offset.y, "y");
-      this.setState({ transition: transitionOnWheel });
     }
     if (isSetX) {
       this.setScroll(this.state.offset.x, "x");
-      this.setState({ transition: transitionOnWheel });
     }
     if (!isSetX && !isSetY) {
-      const decreaseTime = this.setInertion();
-      this.setState({ transition: transitionOnTouchEnd(decreaseTime) });
+      this.setInertion();
     }
   };
 
@@ -459,33 +472,36 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   setInertion = () => {
     const { V_MIN } = this.scrollData;
-    const { isRenderScroll } = this.state;
-    const v0 = this.calculateVelocity(10);
+    const { isRenderScroll, offset } = this.state;
+    const v0 = this.calculateVelocity(2);
     const A = 0.002; // Коэффициент, отражающий быстроту уменьшения скорости
-    const decreaseTimeY = (-1 / A) * Math.log(V_MIN / Math.abs(v0.y));
-    const decreaseTimeX = (-1 / A) * Math.log(V_MIN / Math.abs(v0.x));
-    const decreaseTime = {
-      x: decreaseTimeX,
-      y: decreaseTimeY,
+
+    const decreaseTime = (type: "x" | "y") =>
+      (-1 / A) * Math.log(V_MIN / Math.abs(v0[type]));
+    const path = (t: number, type: "x" | "y") =>
+      (v0[type] / A) * (1 - Math.exp(-A * t));
+
+    const timing = (timeFraction: number) => timeFraction;
+    const drawType = (type: "x" | "y") => (progress: number) => {
+      const targetPath = path(decreaseTime(type) * progress, type);
+      this.setScroll(offset[type] - targetPath, type);
     };
-    const pathX = (v0.x / A) * (1 - Math.exp(-A * decreaseTime.x));
-    const pathY = (v0.y / A) * (1 - Math.exp(-A * decreaseTime.y));
-    const path = {
-      x: pathX,
-      y: pathY,
-    };
-    this.scrollData.decreaseTime = decreaseTime;
-    if (isRenderScroll.x) {
-      const nextOffset = this.state.offset.x - path.x;
-      this.setScroll(nextOffset, "x");
+    if (isRenderScroll.y && decreaseTime("y") > 0) {
+      this.animate({
+        duration: decreaseTime("y"),
+        timing,
+        draw: drawType("y"),
+      });
     }
-    if (isRenderScroll.y) {
-      const nextOffset = this.state.offset.y - path.y;
-      this.setScroll(nextOffset, "y");
+    if (isRenderScroll.x && decreaseTime("x") > 0) {
+      this.animate({
+        duration: decreaseTime("x"),
+        timing,
+        draw: drawType("x"),
+      });
     }
 
     this.scrollData.timesArray = [];
-    return Math.max(decreaseTimeX, decreaseTimeY);
   };
 
   onWheel = (evt: React.WheelEvent) => {
