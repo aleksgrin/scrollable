@@ -2,9 +2,10 @@ import React, { PureComponent, createRef, forwardRef } from "react";
 import cx from "classnames";
 import "./scrollable.scss";
 
+type TScrollBar = "none" | "onscroll" | "always";
 interface IScrollWrapProps {
   className?: string;
-  scrollBars?: boolean;
+  scrollBarsType?: TScrollBar;
   clickable?: boolean;
   onTouchStart?: () => void;
   onTouchEnd?: () => void;
@@ -28,6 +29,7 @@ interface IState {
   crollPersentage: IInitialState;
   isRenderScroll: TInitialBool;
   transition: string;
+  scrollBars: boolean;
   MAX_OFFSET: IInitialState;
   MAX_SCROLL: IInitialState;
   MIN_OFFSET: IInitialState;
@@ -52,6 +54,19 @@ type TAnimate = {
   draw: (progress: number) => void;
   duration: number;
 };
+
+const getInitialBarsVisibility = (type?: TScrollBar) => {
+  switch (type) {
+    case "none":
+      return false;
+    case "always":
+      return true;
+    case "onscroll":
+      return false;
+    default:
+      return true;
+  }
+};
 const DELTA_T = 10;
 class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   state: IState = {
@@ -60,6 +75,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     crollPersentage: { x: 0, y: 0 },
     isRenderScroll: { x: true, y: true },
     transition: "",
+    scrollBars: getInitialBarsVisibility(this.props.scrollBarsType),
     MAX_OFFSET: { x: 0, y: 0 },
     MIN_OFFSET: { x: 0, y: 0 },
     MAX_SCROLL: { x: 0, y: 0 },
@@ -81,6 +97,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   timer: undefined | number;
   animationFrameTimerId: number = 0;
+  visibilityTimer: number | undefined;
 
   wrapperOut = createRef<HTMLDivElement>();
   wrapperInner = createRef<HTMLDivElement>();
@@ -156,6 +173,17 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     const centerX = (outerRect.width - elemRect.width) / 2;
     const centerY = (outerRect.height - elemRect.height) / 2;
     return { centerX, centerY };
+  };
+
+  setVisibility = () => {
+    if (this.props.scrollBarsType !== "onscroll") return;
+    const VISIBILITY_FADE_TIME = 600;
+
+    window.clearTimeout(this.visibilityTimer);
+    this.setState({ scrollBars: true });
+    this.visibilityTimer = window.setTimeout(() => {
+      this.setState({ scrollBars: false });
+    }, VISIBILITY_FADE_TIME);
   };
 
   // Функции задачи скролла
@@ -294,6 +322,14 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     this.animationFrameTimerId = requestAnimationFrame(animate);
   };
 
+  showScrollBars = () => {
+    this.setState({ scrollBars: true });
+  };
+
+  hideScrollBars = () => {
+    this.setState({ scrollBars: false });
+  };
+
   // Обработчики событий
   onMouseDown = (evt: React.MouseEvent) => {
     const constantBarOffsetX = this.state.scroll.x;
@@ -382,6 +418,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
         this.setScrollLog(nextOffset, "y");
       }
       if (isRenderScroll.x || isRenderScroll.y) {
+        this.setVisibility();
         this.setState({ transition: "" });
       }
       if (
@@ -501,9 +538,12 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       const nextOffsetX = offset.x - evt.deltaX;
       this.setScroll(nextOffsetX, "x");
     }
-    if (isRenderScroll.x || isRenderScroll.y)
+    if (isRenderScroll.x || isRenderScroll.y) {
+      this.setVisibility();
       this.setState({ transition: "transform ease 0.5s" });
-    if ((isRenderScroll.x || isRenderScroll.y) && onWheel) onWheel(offset);
+    }
+    if ((isRenderScroll.x || isRenderScroll.y) && typeof onWheel === "function")
+      onWheel(offset);
   };
 
   onMouseOver = () => (this.scrollData.isCursorInside = true);
@@ -609,7 +649,10 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     ].includes(evt.key);
     const TRANSLATE_VALUE = evt.repeat ? TRANSLATE_BIG : TRANSLATE_SMALL;
 
-    if (isArrowKey) this.setState({ transition: "" });
+    if (isArrowKey) {
+      this.setVisibility();
+      this.setState({ transition: "" });
+    }
     if (isRenderScroll.y && evt.key === "ArrowDown") {
       const nextOffset = this.state.offset.y - TRANSLATE_VALUE;
       this.setScroll(nextOffset, "y");
@@ -656,17 +699,16 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   }
 
   render() {
-    const { className, children, scrollBars = true } = this.props;
+    const { className, children } = this.props;
     const {
       crollPersentage,
       scroll,
       offset,
       isRenderScroll,
       transition,
+      scrollBars,
     } = this.state;
 
-    const isRenderScrollBarsY = scrollBars && isRenderScroll.y;
-    const isRenderScrollBarsX = scrollBars && isRenderScroll.x;
     return (
       <div className={cx("scrollable", { [`${className}`]: className })}>
         <div
@@ -691,21 +733,23 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
             {children}
           </div>
         </div>
-        {isRenderScrollBarsY && (
+        {isRenderScroll.y && (
           <ScrollControlsY
             crollPersentage={crollPersentage.y}
             scrollPosition={scroll.y}
             transitionValue={transition}
+            scrollBars={scrollBars}
             onMouseDown={this.onMouseDown}
             ref={this.scrollWrapperOutY}
           />
         )}
-        {isRenderScrollBarsX && (
+        {isRenderScroll.x && (
           <ScrollControlsX
             crollPersentage={crollPersentage.x}
             scrollPosition={scroll.x}
             onMouseDown={this.onMouseDown}
             transitionValue={transition}
+            scrollBars={scrollBars}
             ref={this.scrollWrapperOutX}
           />
         )}
@@ -719,12 +763,27 @@ type ScrollProps = {
   crollPersentage: number;
   scrollPosition: number;
   transitionValue: string;
+  scrollBars: boolean;
   onMouseDown: (evt: React.MouseEvent) => void;
 };
 
 const ScrollControlsX = forwardRef<Ref, ScrollProps>(
-  ({ crollPersentage, scrollPosition, transitionValue, onMouseDown }, ref) => (
-    <div className="scrollable__scroll-bar scrollable__scroll-bar--x" ref={ref}>
+  (
+    {
+      crollPersentage,
+      scrollPosition,
+      transitionValue,
+      scrollBars,
+      onMouseDown,
+    },
+    ref
+  ) => (
+    <div
+      className={cx("scrollable__scroll-bar scrollable__scroll-bar--x", {
+        "scrollable__scroll-bar--hide": !scrollBars,
+      })}
+      ref={ref}
+    >
       <div
         className="scrollable__scroll-bar-inner scrollable__scroll-bar-inner--x"
         style={{
@@ -739,8 +798,22 @@ const ScrollControlsX = forwardRef<Ref, ScrollProps>(
 );
 
 const ScrollControlsY = forwardRef<Ref, ScrollProps>(
-  ({ crollPersentage, scrollPosition, transitionValue, onMouseDown }, ref) => (
-    <div className="scrollable__scroll-bar scrollable__scroll-bar--y" ref={ref}>
+  (
+    {
+      crollPersentage,
+      scrollPosition,
+      transitionValue,
+      scrollBars,
+      onMouseDown,
+    },
+    ref
+  ) => (
+    <div
+      className={cx("scrollable__scroll-bar scrollable__scroll-bar--y", {
+        "scrollable__scroll-bar--hide": !scrollBars,
+      })}
+      ref={ref}
+    >
       <div
         className="scrollable__scroll-bar-inner scrollable__scroll-bar-inner--y"
         style={{

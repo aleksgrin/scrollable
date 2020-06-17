@@ -15,7 +15,7 @@
     background-color: #ececec;
     z-index: 2;
     overflow: hidden;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.4s ease;
     &--y {
       height: 90%;
       width: 4px;
@@ -33,6 +33,10 @@
     &--hide {
       opacity: 0;
       pointer-events: none;
+    }
+    &--show {
+      opacity: 1;
+      pointer-events: all;
     }
   }
   &__scroll-bar-inner {
