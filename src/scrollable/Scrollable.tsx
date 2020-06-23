@@ -7,6 +7,7 @@ interface IScrollWrapProps {
   className?: string;
   scrollBarsType?: TScrollBar;
   clickable?: boolean;
+  activeItem?: number;
   onTouchStart?: () => void;
   onTouchEnd?: () => void;
   onMove?: (offset: IInitialState) => void;
@@ -575,8 +576,12 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       )
     )
       return;
-    const { offsetLeft, offsetTop } = targetElem;
-    const { centerX, centerY } = this.getCenterCoords(targetElem);
+    this.scrollToDOMElement(targetElem);
+  };
+
+  scrollToDOMElement = (elem: HTMLElement) => {
+    const { offsetLeft, offsetTop } = elem;
+    const { centerX, centerY } = this.getCenterCoords(elem);
     const { isRenderScroll } = this.state;
 
     if (isRenderScroll.x || isRenderScroll.y)
@@ -696,6 +701,22 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
   componentWillUnmount() {
     this.destroyEventListeners();
+  }
+
+  componentDidUpdate(prevProps: IScrollWrapProps) {
+    const currentActiveItem = this.props.activeItem;
+    if (!currentActiveItem) return;
+    if (prevProps.activeItem === currentActiveItem) return;
+    const elems = this.wrapperInner.current?.children;
+    if (!elems) return;
+    if (elems && elems.length < 2) {
+      console.warn(
+        "Для использования props.activeItem необходимо, чтобы количество дочерних элементов у 'Scrollable' на первом уровне вложенности было больше 1"
+      );
+      return;
+    }
+    const targetElem = elems[currentActiveItem];
+    this.scrollToDOMElement(targetElem as HTMLElement);
   }
 
   render() {
