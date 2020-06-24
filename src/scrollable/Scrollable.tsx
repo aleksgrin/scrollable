@@ -2,6 +2,9 @@ import React, { PureComponent, createRef, forwardRef } from "react";
 import cx from "classnames";
 import "./scrollable.scss";
 
+const ACTIVE_ITEM_WARN =
+  "Для использования 'props.activeItem' необходимо, чтобы количество дочерних элементов у 'Scrollable' на первом уровне вложенности было больше 1";
+
 type TScrollBar = "none" | "onscroll" | "always";
 interface IScrollWrapProps {
   className?: string;
@@ -246,9 +249,6 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       MIN_SCROLL: { [type]: MIN_SCROLL },
     } = this.state;
 
-    if (isNaN(offset)) {
-      debugger;
-    }
     const nextScrollBarValue = Math.round((-offset * MAX_SCROLL) / MAX_OFFSET);
     const boundaryOffset = -this.getBoundaryValue(
       -offset,
@@ -579,7 +579,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     this.scrollToDOMElement(targetElem);
   };
 
-  scrollToDOMElement = (elem: HTMLElement) => {
+  scrollToDOMElement = (elem: HTMLElement | undefined) => {
+    if (elem === undefined) return;
     const { offsetLeft, offsetTop } = elem;
     const { centerX, centerY } = this.getCenterCoords(elem);
     const { isRenderScroll } = this.state;
@@ -619,7 +620,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     }
   };
 
-  updateScrollData = (type: "x" | "y") => {
+  updateScrollData = (type: "x" | "y", cb?: () => void) => {
     const { wrapperOutSize, wrapperInnerSize } = this.getDOMRect(
       this.getSize(type)
     );
@@ -634,7 +635,10 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
           },
           MAX_OFFSET: { ...prevState.MAX_OFFSET, [type]: MAX_OFFSET },
         }),
-        () => this.updateScrollBars(type)
+        () => {
+          this.updateScrollBars(type);
+          if (typeof cb === "function") cb();
+        }
       );
     }
   };
@@ -693,30 +697,45 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     window.removeEventListener("resize", this.onWindowResize);
   };
 
+  printWarnings = () => {
+    const { activeItem } = this.props;
+    const elems = this.wrapperInner.current?.children;
+
+    if (activeItem !== undefined && elems && elems.length < 2)
+      console.error(ACTIVE_ITEM_WARN);
+  };
+
   componentDidMount() {
     this.initEventListeners();
-    this.updateScrollData("y");
-    this.updateScrollData("x");
+    this.updateScrollData("y", () =>
+      this.scrollToActiveItem(this.props.activeItem, null)
+    );
+    this.updateScrollData("x", () =>
+      this.scrollToActiveItem(this.props.activeItem, null)
+    );
+    this.printWarnings();
   }
 
   componentWillUnmount() {
     this.destroyEventListeners();
   }
 
-  componentDidUpdate(prevProps: IScrollWrapProps) {
-    const currentActiveItem = this.props.activeItem;
-    if (!currentActiveItem) return;
-    if (prevProps.activeItem === currentActiveItem) return;
+  scrollToActiveItem = (
+    currentItem: number | undefined,
+    prevItem: number | undefined | null
+  ) => {
     const elems = this.wrapperInner.current?.children;
-    if (!elems) return;
-    if (elems && elems.length < 2) {
-      console.warn(
-        "Для использования props.activeItem необходимо, чтобы количество дочерних элементов у 'Scrollable' на первом уровне вложенности было больше 1"
-      );
-      return;
-    }
-    const targetElem = elems[currentActiveItem];
+    if (currentItem === undefined || prevItem === currentItem || !elems) return;
+    if (elems.length < 2) return;
+
+    const targetElem = elems[currentItem];
     this.scrollToDOMElement(targetElem as HTMLElement);
+  };
+
+  componentDidUpdate(prevProps: IScrollWrapProps) {
+    const { activeItem: currentActiveItem } = this.props;
+    const { activeItem: prevActiveItem } = prevProps;
+    this.scrollToActiveItem(currentActiveItem, prevActiveItem);
   }
 
   render() {

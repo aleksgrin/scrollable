@@ -3,7 +3,7 @@ import Scrollable from "../../scrollable/Scrollable";
 import "./example_1.scss";
 
 function App() {
-  const [num, setNum] = useState(0);
+  const [num, setNum] = useState(49);
   return (
     <div className="example_1">
       <Scrollable
