@@ -3,7 +3,7 @@ import Scrollable from "../../scrollable/Scrollable";
 import "./example_1.scss";
 
 function App() {
-  const [num, setNum] = useState(49);
+  const [num, setNum] = useState(2);
   return (
     <div className="example_1">
       <Scrollable
@@ -11,13 +11,11 @@ function App() {
         scrollBarsType="onscroll"
         activeItem={num}
       >
-        <div className="wrap">
-          {Array.from({ length: 50 }).map((_, ind) => (
-            <div className="my-scroll__item" key={ind}>
-              {ind + 1}
-            </div>
-          ))}
-        </div>
+        {Array.from({ length: 50 }).map((_, ind) => (
+          <div className="my-scroll__item" key={ind}>
+            {ind + 1}
+          </div>
+        ))}
       </Scrollable>
       <button onClick={() => setNum(num + 1)}>Следующий {num}</button>
     </div>

@@ -6,6 +6,17 @@ const ACTIVE_ITEM_WARN =
   "Для использования 'props.activeItem' необходимо, чтобы количество дочерних элементов у 'Scrollable' на первом уровне вложенности было больше 1";
 
 type TScrollBar = "none" | "onscroll" | "always";
+type TScrollBehavior = {};
+type TScrollBarsBehavior = {};
+type TOptionEvents = {};
+type TOptions = {
+  // scrollbars: исчезновение при скролле, может еще стили
+  // скролл: затухание, оттягивание, удар с оттягиванием
+  // события: возможность кликать, тянуть за скролбары
+  scrollBehavior?: TScrollBehavior;
+  scrollBarsBehavior?: TScrollBarsBehavior;
+  events?: TOptionEvents;
+};
 interface IScrollWrapProps {
   className?: string;
   scrollBarsType?: TScrollBar;
@@ -13,31 +24,31 @@ interface IScrollWrapProps {
   activeItem?: number;
   onTouchStart?: () => void;
   onTouchEnd?: () => void;
-  onMove?: (offset: IInitialState) => void;
-  onWheel?: (offset: IInitialState) => void;
+  onMove?: (offset: IXYNumber) => void;
+  onWheel?: (offset: IXYNumber) => void;
 }
 
-interface IInitialState {
+interface IXYNumber {
   x: number;
   y: number;
 }
 
-type TInitialBool = {
+type TXYBool = {
   x: boolean;
   y: boolean;
 };
 
 interface IState {
-  offset: IInitialState;
-  scroll: IInitialState;
-  crollPersentage: IInitialState;
-  isRenderScroll: TInitialBool;
+  offset: IXYNumber;
+  scroll: IXYNumber;
+  crollPersentage: IXYNumber;
+  isRenderScroll: TXYBool;
   transition: string;
   scrollBars: boolean;
-  MAX_OFFSET: IInitialState;
-  MAX_SCROLL: IInitialState;
-  MIN_OFFSET: IInitialState;
-  MIN_SCROLL: IInitialState;
+  MAX_OFFSET: IXYNumber;
+  MAX_SCROLL: IXYNumber;
+  MIN_OFFSET: IXYNumber;
+  MIN_SCROLL: IXYNumber;
 }
 
 interface IscrollData {
@@ -45,10 +56,10 @@ interface IscrollData {
   isClickStarted: boolean;
   isTouchMoveStarted: boolean;
   isCursorInside: boolean;
-  start: IInitialState;
-  barStart: IInitialState;
-  constantOffset: IInitialState;
-  constantBarOffset: IInitialState;
+  start: IXYNumber;
+  barStart: IXYNumber;
+  constantOffset: IXYNumber;
+  constantBarOffset: IXYNumber;
   V_MIN: number;
   timesArray: Array<{ t: number; x: number; y: number }>;
 }
@@ -99,16 +110,15 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     timesArray: [],
   };
 
-  timer: undefined | number;
+  velocityTimerId: undefined | number;
   animationFrameTimerId: number = 0;
-  visibilityTimer: number | undefined;
+  visibilityTimerId: number | undefined;
 
   wrapperOut = createRef<HTMLDivElement>();
   wrapperInner = createRef<HTMLDivElement>();
   scrollWrapperOutY = createRef<HTMLDivElement>();
   scrollWrapperOutX = createRef<HTMLDivElement>();
 
-  // Вспомогательные функции
   getDOMRect = (size: "width" | "height") => {
     const wrapperOutSize = this.wrapperOut.current?.getBoundingClientRect()[
       size
@@ -183,14 +193,13 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     if (this.props.scrollBarsType !== "onscroll") return;
     const VISIBILITY_FADE_TIME = 600;
 
-    window.clearTimeout(this.visibilityTimer);
+    window.clearTimeout(this.visibilityTimerId);
     this.setState({ scrollBars: true });
-    this.visibilityTimer = window.setTimeout(() => {
+    this.visibilityTimerId = window.setTimeout(() => {
       this.setState({ scrollBars: false });
     }, VISIBILITY_FADE_TIME);
   };
 
-  // Функции задачи скролла
   setScrollLog = (offset: number, type: "x" | "y") => {
     const {
       MAX_OFFSET: { [type]: MAX_OFFSET },
@@ -198,9 +207,10 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       MAX_SCROLL: { [type]: MAX_SCROLL },
       MIN_SCROLL: { [type]: MIN_SCROLL },
     } = this.state;
+
     const { scrollWrapperOutSize = 0 } = this.getDOMRect(this.getSize(type));
     const nextScrollBarValue = Math.round((-offset * MAX_SCROLL) / MAX_OFFSET);
-    const isBoundaryOffset = this.isValueOutBound(
+    const isOffsetOutBound = this.isValueOutBound(
       -offset,
       MIN_OFFSET,
       MAX_OFFSET
@@ -209,7 +219,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     const MAX_LOG_OFFSET = scrollWrapperOutSize * 0.25;
     const CONSTANT_ATAN_LIM = MAX_LOG_OFFSET / (Math.PI / 2);
     let boundaryOffset: number;
-    if (isBoundaryOffset) {
+    if (isOffsetOutBound) {
       const deltaOffset =
         offset > 0
           ? Math.abs(offset) - MIN_OFFSET
@@ -323,15 +333,22 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     this.animationFrameTimerId = requestAnimationFrame(animate);
   };
 
-  showScrollBars = () => {
-    this.setState({ scrollBars: true });
+  showScrollBars = () => this.setState({ scrollBars: true });
+
+  hideScrollBars = () => this.setState({ scrollBars: false });
+
+  scrollToActiveItem = (
+    currentItem: number | undefined,
+    prevItem: number | undefined | null
+  ) => {
+    const elems = this.wrapperInner.current?.children;
+    if (currentItem === undefined || prevItem === currentItem || !elems) return;
+    if (elems.length < 2) return;
+
+    const targetElem = elems[currentItem];
+    this.scrollToDOMElement(targetElem as HTMLElement);
   };
 
-  hideScrollBars = () => {
-    this.setState({ scrollBars: false });
-  };
-
-  // Обработчики событий
   onMouseDown = (evt: React.MouseEvent) => {
     const constantBarOffsetX = this.state.scroll.x;
     const constantBarOffsetY = this.state.scroll.y;
@@ -388,7 +405,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
 
     window.cancelAnimationFrame(this.animationFrameTimerId);
     const startTime = Date.now();
-    this.timer = window.setInterval(() => {
+    this.velocityTimerId = window.setInterval(() => {
       const currTime = Date.now();
       const timerValue = {
         t: currTime - startTime,
@@ -433,7 +450,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   onTouchEnd = () => {
     const { onTouchEnd } = this.props;
     if (typeof onTouchEnd === "function") onTouchEnd();
-    window.clearInterval(this.timer);
+    window.clearInterval(this.velocityTimerId);
     this.setScrollOnTouchEnd();
     this.scrollData.isTouchStarted = false;
     this.scrollData.isTouchMoveStarted = false;
@@ -719,18 +736,6 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   componentWillUnmount() {
     this.destroyEventListeners();
   }
-
-  scrollToActiveItem = (
-    currentItem: number | undefined,
-    prevItem: number | undefined | null
-  ) => {
-    const elems = this.wrapperInner.current?.children;
-    if (currentItem === undefined || prevItem === currentItem || !elems) return;
-    if (elems.length < 2) return;
-
-    const targetElem = elems[currentItem];
-    this.scrollToDOMElement(targetElem as HTMLElement);
-  };
 
   componentDidUpdate(prevProps: IScrollWrapProps) {
     const { activeItem: currentActiveItem } = this.props;
