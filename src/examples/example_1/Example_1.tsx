@@ -1,16 +1,25 @@
 import React, { useState } from "react";
-import Scrollable from "../../scrollable/Scrollable";
+import Scrollable, { TOptions } from "../../scrollable/Scrollable";
 import "./example_1.scss";
+
+const options: TOptions = {
+  events: {
+    click: false,
+  },
+  scrollBarsBehavior: {
+    visibility: "onscroll",
+  },
+  scrollBehavior: {
+    inertion: true,
+    bounce: true,
+  },
+};
 
 function App() {
   const [num, setNum] = useState(2);
   return (
     <div className="example_1">
-      <Scrollable
-        className="my-scroll"
-        scrollBarsType="onscroll"
-        activeItem={num}
-      >
+      <Scrollable className="my-scroll" activeItem={num} options={options}>
         {Array.from({ length: 50 }).map((_, ind) => (
           <div className="my-scroll__item" key={ind}>
             {ind + 1}

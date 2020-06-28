@@ -5,11 +5,22 @@ import "./scrollable.scss";
 const ACTIVE_ITEM_WARN =
   "Для использования 'props.activeItem' необходимо, чтобы количество дочерних элементов у 'Scrollable' на первом уровне вложенности было больше 1";
 
-type TScrollBar = "none" | "onscroll" | "always";
-type TScrollBehavior = {};
-type TScrollBarsBehavior = {};
-type TOptionEvents = {};
-type TOptions = {
+type TScrollBarVisibility = "none" | "onscroll" | "always";
+
+type TScrollBehavior = {
+  inertion?: boolean;
+  bounce?: boolean;
+};
+
+type TScrollBarsBehavior = {
+  visibility?: TScrollBarVisibility;
+};
+
+type TOptionEvents = {
+  click?: boolean;
+};
+
+export type TOptions = {
   // scrollbars: исчезновение при скролле, может еще стили
   // скролл: затухание, оттягивание, удар с оттягиванием
   // события: возможность кликать, тянуть за скролбары
@@ -18,9 +29,8 @@ type TOptions = {
   events?: TOptionEvents;
 };
 interface IScrollWrapProps {
+  options?: TOptions;
   className?: string;
-  scrollBarsType?: TScrollBar;
-  clickable?: boolean;
   activeItem?: number;
   onTouchStart?: () => void;
   onTouchEnd?: () => void;
@@ -70,7 +80,7 @@ type TAnimate = {
   duration: number;
 };
 
-const getInitialBarsVisibility = (type?: TScrollBar) => {
+const getInitialBarsVisibility = (type?: TScrollBarVisibility) => {
   switch (type) {
     case "none":
       return false;
@@ -90,7 +100,9 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     crollPersentage: { x: 0, y: 0 },
     isRenderScroll: { x: true, y: true },
     transition: "",
-    scrollBars: getInitialBarsVisibility(this.props.scrollBarsType),
+    scrollBars: getInitialBarsVisibility(
+      this.props.options?.scrollBarsBehavior?.visibility
+    ),
     MAX_OFFSET: { x: 0, y: 0 },
     MIN_OFFSET: { x: 0, y: 0 },
     MAX_SCROLL: { x: 0, y: 0 },
@@ -190,7 +202,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   };
 
   setVisibility = () => {
-    if (this.props.scrollBarsType !== "onscroll") return;
+    if (this.props.options?.scrollBarsBehavior?.visibility !== "onscroll")
+      return;
     const VISIBILITY_FADE_TIME = 600;
 
     window.clearTimeout(this.visibilityTimerId);
@@ -423,17 +436,20 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     const { isTouchStarted, constantOffset, start } = this.scrollData;
     const { isRenderScroll } = this.state;
     const { onMove } = this.props;
+    let bounce = this.props.options?.scrollBehavior?.bounce;
+    bounce = bounce !== undefined ? bounce : true;
+    const scrollFunction = bounce ? this.setScrollLog : this.setScroll;
     if (isTouchStarted) {
       this.scrollData.isTouchMoveStarted = true;
       if (isRenderScroll.x) {
         const end = this.getTouchCoords(evt).x;
         const nextOffset = constantOffset.x + end - start.x;
-        this.setScrollLog(nextOffset, "x");
+        scrollFunction(nextOffset, "x");
       }
       if (isRenderScroll.y) {
         const end = this.getTouchCoords(evt).y;
         const nextOffset = constantOffset.y + end - start.y;
-        this.setScrollLog(nextOffset, "y");
+        scrollFunction(nextOffset, "y");
       }
       if (isRenderScroll.x || isRenderScroll.y) {
         this.setVisibility();
@@ -461,6 +477,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   setScrollOnTouchEnd = () => {
     const { isTouchMoveStarted } = this.scrollData;
     const { isRenderScroll } = this.state;
+    let inertion = this.props.options?.scrollBehavior?.inertion;
+    inertion = inertion !== undefined ? inertion : true;
 
     if (!isTouchMoveStarted) return;
 
@@ -480,7 +498,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
     if (isSetX) {
       this.setScroll(this.state.offset.x, "x");
     }
-    if (!isSetX && !isSetY) {
+    if (!isSetX && !isSetY && inertion) {
       this.setInertion();
     }
   };
@@ -583,7 +601,8 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
   };
 
   onClick = (evt: React.SyntheticEvent) => {
-    const { clickable = true } = this.props;
+    let clickable = this.props.options?.events?.click;
+    clickable = clickable !== undefined ? clickable : true;
     const noClickClassnames = ["scrollable__inner", "scrollable__content"];
     if (!clickable) return;
     const targetElem = evt.target as HTMLElement;
