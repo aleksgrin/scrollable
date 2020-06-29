@@ -7,7 +7,7 @@ const options: TOptions = {
     click: false,
   },
   scrollBarsBehavior: {
-    visibility: "onscroll",
+    visibility: "none",
   },
   scrollBehavior: {
     inertion: true,

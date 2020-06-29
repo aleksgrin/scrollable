@@ -773,6 +773,10 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
       scrollBars,
     } = this.state;
 
+    const visibility = this.props.options?.scrollBarsBehavior?.visibility;
+
+    const isRenderBarsY = visibility !== "none" && isRenderScroll.y;
+    const isRenderBarsX = visibility !== "none" && isRenderScroll.x;
     return (
       <div className={cx("scrollable", { [`${className}`]: className })}>
         <div
@@ -797,7 +801,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
             {children}
           </div>
         </div>
-        {isRenderScroll.y && (
+        {isRenderBarsY && (
           <ScrollControlsY
             crollPersentage={crollPersentage.y}
             scrollPosition={scroll.y}
@@ -807,7 +811,7 @@ class ScrollWrap extends PureComponent<IScrollWrapProps, IState> {
             ref={this.scrollWrapperOutY}
           />
         )}
-        {isRenderScroll.x && (
+        {isRenderBarsX && (
           <ScrollControlsX
             crollPersentage={crollPersentage.x}
             scrollPosition={scroll.x}
