@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import Scrollable, { TOptions } from "../../scrollable/Scrollable";
+import Scrollable from "../../scrollable/Scrollable";
+import { TOptions } from "../../scrollable/types";
 import "./example_1.scss";
 
 const options: TOptions = {
