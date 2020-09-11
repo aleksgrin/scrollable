@@ -1,8 +1,8 @@
 import React from "react";
 import cx from "classnames";
-import { Inits } from "./Inits";
+import { Inits } from "./helpClasses/Inits";
 import { IScrollWrapProps } from "./types";
-import { ScrollControlsY, ScrollControlsX } from "./ScrollControls";
+import { ScrollControlsY, ScrollControlsX } from "./scrollControls";
 import "./scrollable.scss";
 
 class ScrollWrap extends Inits {

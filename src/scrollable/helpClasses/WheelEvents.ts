@@ -1,4 +1,5 @@
 import { KeyBoardEvents } from "./KeyBoardEvents";
+
 export class WheelEvents extends KeyBoardEvents {
   onWheel = (evt: React.WheelEvent) => {
     const { onWheel } = this.props;

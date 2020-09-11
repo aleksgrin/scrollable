@@ -1,6 +1,6 @@
-import React, { PureComponent, createRef, forwardRef } from "react";
-import { IScrollWrapProps, IState, IscrollData, TAnimate } from "./types";
-import { getInitialBarsVisibility } from "./HelperFunctions";
+import { PureComponent, createRef } from "react";
+import { IScrollWrapProps, IState, IscrollData } from "../types";
+import { getInitialBarsVisibility } from "../utils";
 
 export class BaseData extends PureComponent<IScrollWrapProps, IState> {
   state: IState = {
@@ -39,20 +39,4 @@ export class BaseData extends PureComponent<IScrollWrapProps, IState> {
   wrapperInner = createRef<HTMLDivElement>();
   scrollWrapperOutY = createRef<HTMLDivElement>();
   scrollWrapperOutX = createRef<HTMLDivElement>();
-
-  animate = ({ timing, draw, duration }: TAnimate) => {
-    let start = performance.now();
-
-    const animate = (time: number) => {
-      let timeFraction = (time - start) / duration;
-
-      if (timeFraction > 1) timeFraction = 1;
-      let progress = timing(timeFraction);
-      draw(progress);
-      if (timeFraction < 1) {
-        this.animationFrameTimerId = requestAnimationFrame(animate);
-      }
-    };
-    this.animationFrameTimerId = requestAnimationFrame(animate);
-  };
 }

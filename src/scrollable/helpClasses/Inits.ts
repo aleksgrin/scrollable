@@ -1,6 +1,7 @@
 import { WheelEvents } from "./WheelEvents";
-import { ACTIVE_ITEM_WARN } from "./constants";
-import { getSize } from "./HelperFunctions";
+import { ACTIVE_ITEM_WARN } from "../constants";
+import { getSize } from "../utils";
+
 export class Inits extends WheelEvents {
   updateScrollData = (type: "x" | "y", cb?: () => void) => {
     const { wrapperOutSize, wrapperInnerSize } = this.getDOMRect(getSize(type));

@@ -1,4 +1,5 @@
 import { MouseEvents } from "./MouseEvents";
+
 export class KeyBoardEvents extends MouseEvents {
   onKeyDown = (evt: KeyboardEvent) => {
     const { isCursorInside } = this.scrollData;

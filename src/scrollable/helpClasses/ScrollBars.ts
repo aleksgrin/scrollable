@@ -1,5 +1,5 @@
 import { TouchEvents } from "./TouchEvents";
-import { getBoundaryValue, getSize } from "./HelperFunctions";
+import { getBoundaryValue, getSize } from "../utils";
 export class ScrollBars extends TouchEvents {
   setScrollBar = (barOffset: number, type: "x" | "y") => {
     const {

@@ -1,4 +1,5 @@
 import { TScrollBarVisibility } from "./types";
+
 export const getTouchCoords = (evt: React.TouchEvent | TouchEvent) => {
   const x = evt.changedTouches[0].clientX;
   const y = evt.changedTouches[0].clientY;

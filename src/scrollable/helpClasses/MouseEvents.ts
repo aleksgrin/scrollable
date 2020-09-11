@@ -1,4 +1,5 @@
 import { ScrollBars } from "./ScrollBars";
+
 export class MouseEvents extends ScrollBars {
   onMouseDown = (evt: React.MouseEvent) => {
     const constantBarOffsetX = this.state.scroll.x;

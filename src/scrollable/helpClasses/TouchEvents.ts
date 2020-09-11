@@ -1,7 +1,8 @@
-import { DELTA_T } from "./constants";
-import { getTouchCoords } from "./HelperFunctions";
-import { Helpers } from "./Helpers";
-export class TouchEvents extends Helpers {
+import { DELTA_T } from "../constants";
+import { getTouchCoords } from "../utils";
+import { ScrollHelpers } from "./ScrollHelpers";
+
+export class TouchEvents extends ScrollHelpers {
   onDocumentTouchMove = (evt: TouchEvent) => {
     const { isTouchStarted } = this.scrollData;
     const { isRenderScroll } = this.state;
