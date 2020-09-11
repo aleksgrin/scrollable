@@ -1,11 +1,11 @@
 import React from "react";
 import cx from "classnames";
 import { Inits } from "./helpClasses/Inits";
-import { IScrollWrapProps } from "./types";
+import { IScrollableProps } from "./types";
 import { ScrollControlsY, ScrollControlsX } from "./scrollControls";
 import "./scrollable.scss";
 
-class ScrollWrap extends Inits {
+class Scrollable extends Inits {
   componentDidMount() {
     this.initEventListeners();
     this.updateScrollData("y", () =>
@@ -21,7 +21,7 @@ class ScrollWrap extends Inits {
     this.destroyEventListeners();
   }
 
-  componentDidUpdate(prevProps: IScrollWrapProps) {
+  componentDidUpdate(prevProps: IScrollableProps) {
     const { activeItem: currentActiveItem } = this.props;
     const { activeItem: prevActiveItem } = prevProps;
     this.scrollToActiveItem(currentActiveItem, prevActiveItem);
@@ -91,4 +91,4 @@ class ScrollWrap extends Inits {
   }
 }
 
-export default ScrollWrap;
+export default Scrollable;

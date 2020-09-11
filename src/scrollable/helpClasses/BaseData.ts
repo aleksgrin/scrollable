@@ -1,8 +1,8 @@
 import { PureComponent, createRef } from "react";
-import { IScrollWrapProps, IState, IscrollData } from "../types";
+import { IScrollableProps, IState, IscrollData } from "../types";
 import { getInitialBarsVisibility } from "../utils";
 
-export class BaseData extends PureComponent<IScrollWrapProps, IState> {
+export class BaseData extends PureComponent<IScrollableProps, IState> {
   state: IState = {
     offset: { x: 0, y: 0 },
     scroll: { x: 0, y: 0 },

@@ -56,7 +56,7 @@ export type TOptions = {
   events?: TOptionEvents;
 };
 
-export interface IScrollWrapProps {
+export interface IScrollableProps {
   options?: TOptions;
   className?: string;
   activeItem?: number;
