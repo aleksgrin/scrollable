@@ -1,0 +1,55 @@
+.scrollable {
+  position: relative;
+  &__inner {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+  &__content {
+    width: fit-content;
+  }
+  &__scroll-bar {
+    position: absolute;
+    border-radius: 10px;
+    background-color: #ececec;
+    z-index: 2;
+    overflow: hidden;
+    transition: opacity 0.4s ease;
+    &--y {
+      height: 90%;
+      width: 4px;
+      top: 50%;
+      right: 10px;
+      transform: translate3d(0, -50%, 0);
+    }
+    &--x {
+      width: 90%;
+      height: 4px;
+      left: 50%;
+      bottom: 10px;
+      transform: translate3d(-50%, 0, 0);
+    }
+    &--hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    &--show {
+      opacity: 1;
+      pointer-events: all;
+    }
+  }
+  &__scroll-bar-inner {
+    position: absolute;
+    border-radius: inherit;
+    background-color: grey;
+    left: 0;
+    top: 0;
+    &--y {
+      width: 100%;
+    }
+    &--x {
+      height: 100%;
+    }
+  }
+}

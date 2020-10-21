@@ -16,8 +16,7 @@ export class WheelEvents extends KeyBoardEvents {
       this.setVisibility();
       this.setState({ transition: "transform ease 0.5s" });
     }
-    if ((isRenderScroll.x || isRenderScroll.y) && typeof onWheel === "function")
-      onWheel(offset);
+    if ((isRenderScroll.x || isRenderScroll.y) && onWheel) onWheel(offset);
   };
 
   onDocumentWheel = (evt: WheelEvent) => {

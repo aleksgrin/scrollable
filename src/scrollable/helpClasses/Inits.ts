@@ -18,7 +18,7 @@ export class Inits extends WheelEvents {
         }),
         () => {
           this.updateScrollBars(type);
-          if (typeof cb === "function") cb();
+          if (cb) cb();
         }
       );
     }

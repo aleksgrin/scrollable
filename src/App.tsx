@@ -1,14 +1,12 @@
 import React from "react";
-import Example1 from "./examples/example_1/Example_1";
-import Example2 from "./examples/example_2/Example_2";
-import Example3 from "./examples/example_3/Example_3";
+import Example1 from "./examples/example_1_easy/Example_1";
 
 function App() {
   return (
     <div className="App">
       <Example1 />
-      {/* <Example2 />
-      <Example3 /> */}
+      <Example1 />
+      <Example1 />
     </div>
   );
 }
